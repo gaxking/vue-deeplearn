@@ -9,10 +9,16 @@
 </body>
 <script>
 const Observer = function(data) {
-  // 循环修改为每个属性添加get set
+  // ES5 实现方法 循环修改为每个属性添加get set
+  /*
   for (let key in data) {
     reactive(data, key);
   }
+  return data;
+  */
+
+  //ES6 proxy实行方法
+  return proxy(data);
 }
 
 const Dep = function() {
@@ -45,6 +51,31 @@ const Watcher = function(vm, fn) {
   Dep.target = null;
 }
 
+const proxy = function(data){
+	const depDic = {};
+
+	return new Proxy(data, {
+		get:(target, property, value)=>{
+			depDic[property] = depDic[property] || new Dep();
+
+			if(property in target) {
+				console.log('in get');
+				depDic[property].depend();
+				return target[property];
+			}
+			return undefined;
+		},
+		set:(target, property, value)=>{
+			if (target[property] === value) {
+				return;
+			}
+
+			target[property] = value;
+			depDic[property].notify();
+		}
+	})
+} 
+
 const reactive = function(obj, key) {
 	const dep = new Dep();
 	let val = obj[key];
@@ -70,7 +101,7 @@ const Vue = function (options) {
 	this._data = options.data.call(this);
 
 	//设置data的get,set
-	Observer(this._data);
+	this._data = Observer(this._data);
 
 	this.mount = (id)=>{
 		this.dom = document.querySelector(id);
